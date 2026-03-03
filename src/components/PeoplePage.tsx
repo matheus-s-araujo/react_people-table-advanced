@@ -4,11 +4,52 @@ import { PeopleTable } from './PeopleTable';
 import { Person } from '../types';
 import { useEffect, useState } from 'react';
 import { getPeople } from '../api';
+import { useSearchParams } from 'react-router-dom';
+
+type FiltersParams = {
+  sex?: string;
+  centuries?: string[];
+  query?: string;
+};
+
+const getCentury = (person: Person): number => {
+  const personCentury = Math.ceil(person.born / 100);
+
+  return personCentury;
+};
+
+const filteredPeople = (people: Person[], filters: FiltersParams): Person[] => {
+  const centuries = filters.centuries?.map(Number) ?? [];
+
+  return people.filter(person => {
+    if (person.sex !== filters.sex && filters.sex !== 'all') {
+      return false;
+    } else if (
+      centuries.length > 0 &&
+      !centuries.includes(getCentury(person))
+    ) {
+      return false;
+    } else if (filters.query) {
+      return (
+        person.name.includes(filters.query) ||
+        person.motherName?.includes(filters.query) ||
+        person.fatherName?.includes(filters.query)
+      );
+    }
+
+    return true;
+  });
+};
 
 export const PeoplePage = () => {
   const [people, setPeople] = useState<Person[] | null>(null);
   const [isLoadingPeople, setIsLoadingPeople] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [searchParams] = useSearchParams();
+
+  const sex = searchParams.get('sex') ?? 'all';
+  const centuries = searchParams.getAll('centuries');
+  const query = searchParams.get('query') || '';
 
   useEffect(() => {
     setErrorMessage('');
@@ -47,7 +88,11 @@ export const PeoplePage = () => {
               ) : (
                 !isLoadingPeople &&
                 people &&
-                people?.length >= 0 && <PeopleTable people={people} />
+                people?.length >= 0 && (
+                  <PeopleTable
+                    people={filteredPeople(people, { sex, centuries, query })}
+                  />
+                )
               )}
             </div>
           </div>

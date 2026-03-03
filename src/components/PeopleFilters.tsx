@@ -3,11 +3,25 @@ import { SearchLink } from './SearchLink';
 import classNames from 'classnames';
 
 export const PeopleFilters = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const sex = searchParams.get('sex') ?? 'all';
   const centuries = searchParams.getAll('centuries');
   const query = searchParams.get('query') || '';
+
+  const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+
+    if (value) {
+      searchParams.set('query', value);
+    } else {
+      searchParams.delete('query');
+    }
+
+    setSearchParams(searchParams);
+
+    return searchParams;
+  };
 
   const toggleCenturiesList = (newCentury: string) => {
     if (centuries.includes(newCentury)) {
@@ -56,6 +70,7 @@ export const PeopleFilters = () => {
             className="input"
             placeholder="Search"
             value={query}
+            onChange={event => handleQueryChange(event)}
           />
 
           <span className="icon is-left">

@@ -30,10 +30,12 @@ const filteredPeople = (people: Person[], filters: FiltersParams): Person[] => {
     ) {
       return false;
     } else if (filters.query) {
+      const query = filters.query.toLowerCase().trim();
+
       return (
-        person.name.includes(filters.query) ||
-        person.motherName?.includes(filters.query) ||
-        person.fatherName?.includes(filters.query)
+        person.name.toLowerCase().includes(query) ||
+        person.motherName?.toLowerCase().includes(query) ||
+        person.fatherName?.toLowerCase().includes(query)
       );
     }
 

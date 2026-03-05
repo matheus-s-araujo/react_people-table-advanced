@@ -4,7 +4,7 @@ import classNames from 'classnames';
 import { Person } from '../types';
 import { PersonLink } from './PersonLink';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useMemo } from 'react';
 
 type PeopleTableProps = {
   people: Person[];
@@ -13,58 +13,56 @@ type PeopleTableProps = {
 export const PeopleTable = ({ people }: PeopleTableProps) => {
   const { slug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [peopleSortered, setPeopleSortered] = useState<Person[]>(people);
 
   const sort = searchParams.get('sort') || '';
   const order = searchParams.get('order') || '';
 
-  const sorteredPeople = (newFilter: string) => {
-    if (order === 'desc' && sort === newFilter) {
-      searchParams.delete('sort');
-      searchParams.delete('order');
-
-      setPeopleSortered(people);
-      setSearchParams(searchParams);
-
-      return;
+  const sortedPeople = useMemo(() => {
+    if (!sort) {
+      return people;
     }
 
-    let newPeopleSortered = [...peopleSortered];
+    const sorted = [...people].sort((a, b) => {
+      switch (sort) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'sex':
+          return a.sex.localeCompare(b.sex);
+        case 'born':
+          return a.born - b.born;
+        case 'died':
+          return a.died - b.died;
+        default:
+          return 0;
+      }
+    });
 
-    switch (newFilter) {
-      case 'name':
-        newPeopleSortered = newPeopleSortered.sort((a, b) =>
-          a.name.localeCompare(b.name),
-        );
+    return order === 'desc' ? sorted.reverse() : sorted;
+  }, [people, sort, order]);
 
-        break;
-      case 'sex':
-        newPeopleSortered = newPeopleSortered.sort((a, b) =>
-          a.sex.localeCompare(b.sex),
-        );
+  const handleSort = (column: string) => {
+    const isSameColumn = sort === column;
+    const nextOrder = isSameColumn && order !== 'desc' ? 'desc' : undefined;
 
-        break;
-      case 'born':
-        newPeopleSortered = newPeopleSortered.sort((a, b) => a.born - b.born);
-        break;
-      case 'died':
-        newPeopleSortered = newPeopleSortered.sort((a, b) => a.died - b.died);
-        break;
+    const params = new URLSearchParams(searchParams);
+
+    if (!nextOrder && isSameColumn) {
+      params.delete('sort');
+      params.delete('order');
+    } else {
+      params.set('sort', column);
+
+      if (nextOrder) {
+        params.set('order', nextOrder);
+      } else {
+        params.delete('order');
+      }
     }
 
-    if (sort === newFilter) {
-      searchParams.set('order', 'desc');
-      newPeopleSortered = newPeopleSortered.reverse();
-    }
-
-    searchParams.set('sort', newFilter);
-
-    setPeopleSortered(newPeopleSortered);
-    setSearchParams(searchParams);
+    setSearchParams(params);
   };
 
   const handleSortIcon = (column: string): string => {
-    // console.log({ column, sort, order });
     if (column === sort) {
       if (order === 'desc') {
         return 'fa-sort-down';
@@ -76,11 +74,7 @@ export const PeopleTable = ({ people }: PeopleTableProps) => {
     return 'fa-sort';
   };
 
-  const hasParentOnTheList = (parentName: string) => {
-    return people?.find(person => person.name === parentName);
-  };
-
-  const findParent = (parentName: string) => {
+  const hasParentOnTheList = (parentName?: string) => {
     return people?.find(person => person.name === parentName) ?? null;
   };
 
@@ -91,73 +85,25 @@ export const PeopleTable = ({ people }: PeopleTableProps) => {
     >
       <thead>
         <tr>
-          <th>
-            <span className="is-flex is-flex-wrap-nowrap">
-              Name
-              <a onClick={() => sorteredPeople('name')}>
-                <span className="icon">
-                  <i
-                    className={classNames('fas', {
-                      [handleSortIcon('name')]: true,
-                    })}
-                  />
-                </span>
-              </a>
-            </span>
-          </th>
-
-          <th>
-            <span className="is-flex is-flex-wrap-nowrap">
-              Sex
-              <a onClick={() => sorteredPeople('sex')}>
-                <span className="icon">
-                  <i
-                    className={classNames('fas', {
-                      [handleSortIcon('sex')]: true,
-                    })}
-                  />
-                </span>
-              </a>
-            </span>
-          </th>
-
-          <th>
-            <span className="is-flex is-flex-wrap-nowrap">
-              Born
-              <a onClick={() => sorteredPeople('born')}>
-                <span className="icon">
-                  <i
-                    className={classNames('fas', {
-                      [handleSortIcon('born')]: true,
-                    })}
-                  />
-                </span>
-              </a>
-            </span>
-          </th>
-
-          <th>
-            <span className="is-flex is-flex-wrap-nowrap">
-              Died
-              <a onClick={() => sorteredPeople('died')}>
-                <span className="icon">
-                  <i
-                    className={classNames('fas', {
-                      [handleSortIcon('died')]: true,
-                    })}
-                  />
-                </span>
-              </a>
-            </span>
-          </th>
-
+          {['name', 'sex', 'born', 'died'].map(column => (
+            <th key={column}>
+              <span className="is-flex is-flex-wrap-nowrap">
+                {column.charAt(0).toUpperCase() + column.slice(1)}
+                <a onClick={() => handleSort(column)}>
+                  <span className="icon">
+                    <i className={classNames('fas', handleSortIcon(column))} />
+                  </span>
+                </a>
+              </span>
+            </th>
+          ))}
           <th>Mother</th>
           <th>Father</th>
         </tr>
       </thead>
 
       <tbody>
-        {peopleSortered.map(person => (
+        {sortedPeople.map(person => (
           <tr
             data-cy="person"
             key={person.name}
@@ -176,7 +122,7 @@ export const PeopleTable = ({ people }: PeopleTableProps) => {
               <td>-</td>
             ) : hasParentOnTheList(person.motherName) ? (
               <td>
-                <PersonLink person={findParent(person.motherName)} />
+                <PersonLink person={hasParentOnTheList(person.motherName)} />
               </td>
             ) : (
               <td>{person.motherName}</td>
@@ -186,7 +132,7 @@ export const PeopleTable = ({ people }: PeopleTableProps) => {
               <td>-</td>
             ) : hasParentOnTheList(person.fatherName) ? (
               <td>
-                <PersonLink person={findParent(person.fatherName)} />
+                <PersonLink person={hasParentOnTheList(person.fatherName)} />
               </td>
             ) : (
               <td>{person.fatherName}</td>
